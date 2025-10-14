@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Table(name = "estoque")
@@ -21,6 +22,14 @@ public class EstoqueModel {
     private String categoria;
 
     private Integer quantidade;
+
+    @OneToMany(
+            mappedBy = "estoque", // Nome do campo na entidade CarrinhoItemModel que contém o relacionamento @ManyToOne
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY // Otimização: Carrega a lista apenas quando solicitada
+    )
+    private List<CarrinhoItemModel> carrinhosOndeEstaPresente;
 
     public EstoqueModel(Long idEstoque, String nomeProd, String categoria, Integer quantidade, BigDecimal valorProd) {
         this.idEstoque = idEstoque;

@@ -20,6 +20,8 @@ public class CarrinhoItemId implements Serializable {
 
     public CarrinhoItemId() {
 
+
+
     }
 
     @Override
