@@ -2,6 +2,7 @@ package com.example.fotocidade.models;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Entity
@@ -13,13 +14,23 @@ public class AgendamentoModel {
 
     private Date diaAgendamento;
 
+    @Temporal(TemporalType.TIMESTAMP) // Anotação para garantir o formato correto no DB
+    private LocalDateTime horaInicio; // Novo campo para início
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private LocalDateTime horaFim; // Novo campo para fim
+
     private String nomecliente;
 
     private Boolean situacaoPagamento;
 
-    public AgendamentoModel(Long idAgendamento, Date diaAgendamento, String nomecliente, Boolean situacaoPagamento) {
+    public AgendamentoModel(){}
+
+    public AgendamentoModel(Long idAgendamento, Date diaAgendamento, LocalDateTime horaInicio, LocalDateTime horaFim, String nomecliente, Boolean situacaoPagamento) {
         this.idAgendamento = idAgendamento;
         this.diaAgendamento = diaAgendamento;
+        this.horaInicio = horaInicio;
+        this.horaFim = horaFim;
         this.nomecliente = nomecliente;
         this.situacaoPagamento = situacaoPagamento;
     }
@@ -38,6 +49,22 @@ public class AgendamentoModel {
 
     public void setDiaAgendamento(Date diaAgendamento) {
         this.diaAgendamento = diaAgendamento;
+    }
+
+    public LocalDateTime getHoraInicio() {
+        return horaInicio;
+    }
+
+    public void setHoraInicio(LocalDateTime horaInicio) {
+        this.horaInicio = horaInicio;
+    }
+
+    public LocalDateTime getHoraFim() {
+        return horaFim;
+    }
+
+    public void setHoraFim(LocalDateTime horaFim) {
+        this.horaFim = horaFim;
     }
 
     public String getNomecliente() {

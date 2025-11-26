@@ -1,5 +1,6 @@
 package com.example.fotocidade.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -21,8 +22,14 @@ public class CheckoutModel {
     private BigDecimal valorDevolucao;
 
     @OneToOne(mappedBy = "checkout", fetch = FetchType.LAZY)
-    private CarrinhoModel carrinho;
+    @JsonIgnore // Usa @JsonIgnore ou @JsonBackReference para evitar loops de serialização
+    private CarrinhoModel carrinho; // Nome do campo é minúsculo, o getter/setter deve seguir
 
+    // Construtor padrão exigido pelo JPA
+    public CheckoutModel() {
+    }
+
+    // Seu construtor completo
     public CheckoutModel(Long idCheckout, CarrinhoModel carrinho, BigDecimal precoTotal, String formaDePagamento, BigDecimal valorRecebido, BigDecimal valorDevolucao) {
         this.idCheckout = idCheckout;
         this.carrinho = carrinho;
@@ -30,6 +37,15 @@ public class CheckoutModel {
         this.formaDePagamento = formaDePagamento;
         this.valorRecebido = valorRecebido;
         this.valorDevolucao = valorDevolucao;
+    }
+
+    // Corrija os nomes dos getters/setters para seguir a convenção Java (get/set seguido do nome do campo com a primeira letra maiúscula)
+    public CarrinhoModel getCarrinho() {
+        return carrinho;
+    }
+
+    public void setCarrinho(CarrinhoModel carrinho) {
+        this.carrinho = carrinho;
     }
 
     public Long getIdCheckout() {

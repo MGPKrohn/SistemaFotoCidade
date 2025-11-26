@@ -1,5 +1,6 @@
 package com.example.fotocidade.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,7 +22,7 @@ public class EstoqueModel {
 
     private String categoria;
 
-    private Integer quantidade;
+    private BigDecimal quantidade;
 
     @OneToMany(
             mappedBy = "estoque", // Nome do campo na entidade CarrinhoItemModel que contém o relacionamento @ManyToOne
@@ -29,9 +30,13 @@ public class EstoqueModel {
             orphanRemoval = true,
             fetch = FetchType.LAZY // Otimização: Carrega a lista apenas quando solicitada
     )
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<CarrinhoItemModel> carrinhosOndeEstaPresente;
 
-    public EstoqueModel(Long idEstoque, String nomeProd, String categoria, Integer quantidade, BigDecimal valorProd) {
+    public EstoqueModel() {
+    }
+
+    public EstoqueModel(Long idEstoque, String nomeProd, String categoria, BigDecimal quantidade, BigDecimal valorProd) {
         this.idEstoque = idEstoque;
         this.nomeProd = nomeProd;
         this.categoria = categoria;
@@ -63,11 +68,11 @@ public class EstoqueModel {
         this.valorProd = valorProd;
     }
 
-    public Integer getQuantidade() {
+    public BigDecimal getQuantidade() {
         return quantidade;
     }
 
-    public void setQuantidade(Integer quantidade) {
+    public void setQuantidade(BigDecimal quantidade) {
         this.quantidade = quantidade;
     }
 

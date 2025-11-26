@@ -13,6 +13,7 @@ public class CarrinhoItemId implements Serializable {
     private Long carrinho;
     private Long estoque;
 
+
     public CarrinhoItemId(Long carrinho, Long estoque) {
         this.carrinho = carrinho;
         this.estoque = estoque;

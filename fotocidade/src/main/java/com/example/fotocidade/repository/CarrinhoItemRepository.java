@@ -12,4 +12,6 @@ import java.util.List;
 public interface CarrinhoItemRepository extends JpaRepository<CarrinhoItemModel, CarrinhoItemId> {
 
     List<CarrinhoItemModel> findByCarrinho_IdCarrinho(Long idCarrinho);
+
+
 }
