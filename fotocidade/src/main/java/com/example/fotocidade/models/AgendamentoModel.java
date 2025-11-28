@@ -1,7 +1,9 @@
 package com.example.fotocidade.models;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -12,7 +14,8 @@ public class AgendamentoModel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idAgendamento;
 
-    private Date diaAgendamento;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate diaAgendamento;
 
     @Temporal(TemporalType.TIMESTAMP) // Anotação para garantir o formato correto no DB
     private LocalDateTime horaInicio; // Novo campo para início
@@ -26,7 +29,7 @@ public class AgendamentoModel {
 
     public AgendamentoModel(){}
 
-    public AgendamentoModel(Long idAgendamento, Date diaAgendamento, LocalDateTime horaInicio, LocalDateTime horaFim, String nomecliente, Boolean situacaoPagamento) {
+    public AgendamentoModel(Long idAgendamento, LocalDate diaAgendamento, LocalDateTime horaInicio, LocalDateTime horaFim, String nomecliente, Boolean situacaoPagamento) {
         this.idAgendamento = idAgendamento;
         this.diaAgendamento = diaAgendamento;
         this.horaInicio = horaInicio;
@@ -43,11 +46,11 @@ public class AgendamentoModel {
         this.idAgendamento = idAgendamento;
     }
 
-    public Date getDiaAgendamento() {
+    public LocalDate getDiaAgendamento() {
         return diaAgendamento;
     }
 
-    public void setDiaAgendamento(Date diaAgendamento) {
+    public void setDiaAgendamento(LocalDate diaAgendamento) {
         this.diaAgendamento = diaAgendamento;
     }
 

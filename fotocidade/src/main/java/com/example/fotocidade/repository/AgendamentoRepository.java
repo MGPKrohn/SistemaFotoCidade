@@ -6,7 +6,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -18,4 +20,11 @@ public interface AgendamentoRepository extends JpaRepository<AgendamentoModel, L
             @Param("novaHoraInicio") LocalDateTime novaHoraInicio,
             @Param("novaHoraFim") LocalDateTime novaHoraFim
     );
+
+    List<AgendamentoModel> findAllByOrderByDiaAgendamentoAscHoraInicioAsc();
+
+    List<AgendamentoModel> findByDiaAgendamentoOrderByHoraInicioAsc(LocalDate dataAgendamento);
+
+    @Query("SELECT DISTINCT a.diaAgendamento FROM AgendamentoModel a")
+    List<LocalDate> findDistinctDiaAgendamento();
 }
