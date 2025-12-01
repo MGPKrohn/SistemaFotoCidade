@@ -1,205 +1,257 @@
-import React, {useState, useEffect, useCallback} from "react";
-import { useNavigate } from "react-router-dom";
-import { criarProdutoEstoque } from "../services/EstoqueService";
-import { atualizarProdutoEstoque } from "../services/EstoqueService";
-import { listarTodosProdutos } from "../services/EstoqueService";
+// /src/pages/EstoquePage.jsx
 
-function EstoquePage() {
-    const navigate = useNavigate();
+import React, { useState, useEffect } from 'react';
+import { Image as ImageIcon, X } from 'lucide-react';
+import { listarTodosProdutos, salvarProduto, deletarProduto } from '../services/EstoqueService';
+
+const EstoquePage = () => {
     const [produtos, setProdutos] = useState([]);
-    const [novoProduto, setNovoProduto] = useState({
-        nomeProd: '',
-        descricao: '',
-        quantidade: 0,
-        valorProd: 0.0
-    });
-    const [feedback, setFeedback] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    // --- Carregar Produtos do Estoque ---
-    const carregarProdutos = useCallback(async () => {
-        setLoading(true);
-        try {
-            const dadosEstoque = await listarTodosProdutos();
-            setProdutos(dadosEstoque);
-        } catch (err) {
-            setFeedback('Erro ao carregar produtos do estoque.');
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-    useEffect(() => {
-        carregarProdutos();
-    }, [carregarProdutos]);
-
-    // --- Manipuladores de Formulário ---
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setNovoProduto(prevState => ({
-            ...prevState,
-            [name]: value
-        }));
-    };
-    const handleCriarProduto = async (e) => {
-    e.preventDefault();
-    setFeedback(null);
-
-    // 1. Tenta encontrar um produto existente pelo nomeProd
-    const produtoExistente = produtos.find(
-        (p) => p.nomeProd.toLowerCase() === novoProduto.nomeProd.toLowerCase()
-    );
-
-    if (produtoExistente) {
-        // Lógica de SOMA/ATUALIZAÇÃO (PUT)
-        
-        // Converte a quantidade do formulário para número e soma
-        const quantidadeParaSomar = Number(novoProduto.quantidade);
-        const novaQuantidade = Number(produtoExistente.quantidade) + quantidadeParaSomar;
-
-        try {
-            // Prepara os dados de atualização. Assumindo que a API PUT espera o objeto completo
-            const dadosAtualizados = {
-                nomeProd: produtoExistente.nomeProd,
-                descricao: produtoExistente.descricao,
-                // A quantidade é o campo que queremos somar/atualizar
-                quantidade: novaQuantidade, 
-                valorProd: produtoExistente.valorProd,
-            };
-            
-            await handleAtualizarProduto(produtoExistente.idEstoque, dadosAtualizados);
-            setFeedback(`Quantidade do produto "${produtoExistente.nomeProd}" atualizada para ${novaQuantidade}!`);
-
-        } catch (err) {
-            setFeedback('Erro ao somar e atualizar produto.');
-        }
-
-    } else {
-        // Lógica de CRIAÇÃO (POST)
-        try {
-            // Garante que quantidade e valorProd sejam convertidos para número antes de enviar
-            const produtoParaEnviar = {
-                ...novoProduto,
-                quantidade: Number(novoProduto.quantidade),
-                valorProd: Number(novoProduto.valorProd)
-            };
-
-            await criarProdutoEstoque(produtoParaEnviar);
-            setFeedback('Produto criado com sucesso!');
-
-        } catch (err) {
-            setFeedback('Erro ao criar novo produto.');
-        }
-    }
+    const [selectedId, setSelectedId] = useState(null); // ID do produto selecionado
+    const [isModalOpen, setIsModalOpen] = useState(false);
     
-    // Limpa o formulário e recarrega os dados (ou apenas limpa e atualiza o estado local)
-    setNovoProduto({ nomeProd: '', descricao: '', quantidade: 0, valorProd: 0.0 });
-    carregarProdutos(); // Garante que a lista esteja sincronizada com o backend
-};
-    const handleAtualizarProduto = async (idEstoque, updatedData) => {
-        setFeedback(null);  
-        try {
-            await atualizarProdutoEstoque(idEstoque, updatedData);
-            setFeedback('Produto atualizado com sucesso!');
-            carregarProdutos();
-        } catch (err) {
-            setFeedback('Erro ao atualizar produto.');
+    // Estado do Formulário
+    const [form, setForm] = useState({ id: null, nomeProd: '',categoria: '', valorProd: '', quantidade: '' });
+
+    // 1. Carregar Produtos
+    const carregar = async () => {
+        const dados = await listarTodosProdutos();
+        setProdutos(dados);
+    };
+
+    useEffect(() => {
+        carregar();
+    }, []);
+
+    // 2. Ações dos Botões Superiores
+    const handleAdicionar = () => {
+        setForm({ id: null, nomeProd: '', categoria: '', valorProd: '', quantidade: '' }); // Limpa form
+        setIsModalOpen(true);
+    };
+
+    const handleEditar = () => {
+        if (!selectedId) return;
+        const prod = produtos.find(p => p.idEstoque === selectedId);
+        setForm({
+            id: prod.idEstoque, // O backend usa o ID para atualizar se necessário
+            nomeProd: prod.nomeProd || prod.nomeProd, // Ajuste conforme seu backend retorna
+            valorProd: prod.valorProd || prod.valorProd,
+            quantidade: prod.quantidade
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleDeletar = async () => {
+        if (!selectedId) return;
+        if (window.confirm('Tem certeza que deseja deletar este produto?')) {
+            await deletarProduto(selectedId);
+            setSelectedId(null);
+            carregar();
         }
+    };
+
+    // 3. Salvar (Submit do Modal)
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        // Converte para números
+        const payload = {
+            ...form,
+            valorProd: parseFloat(form.valorProd),
+            quantidade: parseFloat(form.quantidade)
+        };
+        
+        await salvarProduto(payload);
+        setIsModalOpen(false);
+        carregar();
     };
 
     return (
-        <div style={{ padding: '20px' }}>
-            <h2>📦 Gestão de Estoque</h2>
-            {feedback && <div style={{ marginBottom: '15px', color: feedback.includes('Erro') ? 'red' : 'green' }}>{feedback}</div>}
-            
-            {/* Formulário para Criar Novo Produto */}
-            <form onSubmit={handleCriarProduto} style={{ marginBottom: '30px', border: '1px solid #ccc', padding: '15px', borderRadius: '5px' }}>
-                <h3>Criar Novo Produto</h3>
-                <input
-                    type="text"
-                    name="nomeProd"
-                    placeholder="Nome do Produto"
-                    value={novoProduto.nomeProd}
-                    onChange={handleInputChange}
-                    required
-                    style={{ marginRight: '10px' }}
-                />
-                <input
-                    type="text"
-                    name="categoria"
-                    placeholder="Categoria"
-                    value={novoProduto.categoria}
-                    onChange={handleInputChange}
-                    required
-                    style={{ marginRight: '10px' }}
-                />
-                <input
-                    type="number"
-                    name="quantidade"
-                    placeholder="Quantidade"
-                    value={novoProduto.quantidade}
-                    onChange={handleInputChange}
-                    required
-                    style={{ marginRight: '10px', width: '100px' }}
-                />
-                <input
-                    type="number"
-                    name="valorProd"
-                    placeholder="Preço"
-                    step="0.01"
-                    value={novoProduto.valorProd}
-                    onChange={handleInputChange}
-                    required
-                    style={{ marginRight: '10px', width: '100px' }}
-                />
-                <button type="submit">Adicionar Produto</button>
-            </form>
-            {/* Lista de Produtos no Estoque */}
-            {loading ? (
-                <div>Carregando produtos...</div>
-            ) : (
-                <table border="1" cellPadding="10" cellSpacing="0" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nome</th>
-                            <th>Categoria</th>
-                            <th>Quantidade</th>
-                            <th>Preço</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {produtos.map(produto => (
-                            <tr key={produto.idEstoque}>
-                                <td>{produto.idEstoque}</td>
-                                <td>{produto.nomeProd}</td>
-                                <td>{produto.categoria}</td>
-                                <td>{produto.quantidade}</td>
-                                <td>R$ {produto.valorProd}</td>
-                                <td>
-                                    <button onClick={() => {  
-                                        const novoNome = prompt('Novo nome:', produto.nomeProd);
-                                        const novaCategoria = prompt('Nova categoria:', produto.categoria);
-                                        const novaQuantidade = parseInt(prompt('Nova quantidade:', produto.quantidade), 10);
-                                        const novoPreco = parseFloat(prompt('Novo preço:', produto.valorProd));
-                                        if (novoNome && novaCategoria && !isNaN(novaQuantidade) && !isNaN(novoPreco)) {
-                                            handleAtualizarProduto(produto.idEstoque, {
-                                                nome: novoNome,
-                                                categoria: novaCategoria,
-                                                quantidade: novaQuantidade,
-                                                preco: novoPreco
-                                            });
-                                        }
-                                    }}>Editar</button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+        <div className="page-container">
+            {/* --- HEADER DA PÁGINA (Figma) --- */}
+            <div style={styles.headerRow}>
+                <h1 style={{ fontSize: '48px' }}>Estoque</h1>
+                
+                <div style={styles.actions}>
+                    <button onClick={handleAdicionar} className="btn-dark">Adicionar</button>
+                    
+                    <button 
+                        onClick={handleEditar} 
+                        className="btn-dark" 
+                        disabled={!selectedId}
+                        style={{ opacity: !selectedId ? 0.5 : 1 }}
+                    >
+                        Editar
+                    </button>
+                    
+                    <button 
+                        onClick={handleDeletar} 
+                        className="btn-dark" 
+                        disabled={!selectedId}
+                        style={{ opacity: !selectedId ? 0.5 : 1 }}
+                    >
+                        Deletar
+                    </button>
+                </div>
+            </div>
+
+            {/* --- GRID DE PRODUTOS --- */}
+            <div style={styles.grid}>
+                {produtos.map(prod => (
+                    <div 
+                        key={prod.idEstoque} 
+                        style={{
+                            ...styles.card,
+                            // Borda preta se selecionado, transparente se não
+                            border: selectedId === prod.idEstoque ? '3px solid #000' : '3px solid transparent'
+                        }}
+                        onClick={() => setSelectedId(prod.idEstoque)}
+                    >
+                        <div style={styles.imagePlaceholder}>
+                            <ImageIcon size={40} color="#333" />
+                        </div>
+                        
+                        <div style={{ textAlign: 'center' }}>
+                            <h3 style={styles.prodTitle}>{prod.nomeProd || prod.nomeProd}</h3>
+                            <p style={styles.prodText}>Categoria: {prod.categoria}</p>
+                            <p style={styles.prodText}>Valor: R$ {prod.valorProd || prod.valorProd}</p>
+                            <p style={styles.prodText}>Qtd: {prod.quantidade}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* --- MODAL (OVERLAY) PARA ADICIONAR/EDITAR --- */}
+            {isModalOpen && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modalContent}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                            <h2>{form.id ? 'Editar Produto' : 'Adicionar Produto'}</h2>
+                            <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none' }}>
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <div>
+                                <label style={styles.label}>Nome do Produto</label>
+                                <input 
+                                    style={styles.input} 
+                                    value={form.nomeProd} 
+                                    onChange={e => setForm({...form, nomeProd: e.target.value})} 
+                                    required 
+                                />
+                            </div>
+                            <div>
+                                <label style={styles.label}>Categoria</label>
+                                <input
+                                    style={styles.input}
+                                    value={form.categoria}
+                                    onChange={e => setForm({ ...form, categoria: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            
+                            <div>
+                                <label style={styles.label}>Quantidade em Estoque</label>
+                                <input 
+                                    type="number" 
+                                    style={styles.input} 
+                                    value={form.quantidade} 
+                                    onChange={e => setForm({...form, quantidade: e.target.value})} 
+                                    required 
+                                />
+                            </div>
+                            <div>
+                                <label style={styles.label}>Valor (R$)</label>
+                                <input 
+                                    type="number" step="0.01" 
+                                    style={styles.input} 
+                                    value={form.valorProd} 
+                                    onChange={e => setForm({...form, valorProd: e.target.value})} 
+                                    required 
+                                />
+                            </div>
+
+                            <button type="submit" className="btn-dark" style={{ marginTop: '10px' }}>
+                                Salvar
+                            </button>
+                        </form>
+                    </div>
+                </div>
             )}
         </div>
     );
-}
+};
 
+// Estilos baseados no seu Figma
+const styles = {
+    headerRow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '40px',
+        marginBottom: '40px'
+    },
+    actions: {
+        display: 'flex',
+        gap: '10px'
+    },
+    grid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+        gap: '30px'
+    },
+    card: {
+        cursor: 'pointer',
+        padding: '10px',
+        borderRadius: '8px',
+        transition: 'all 0.2s',
+        backgroundColor: 'transparent' // O fundo cinza vem da página
+    },
+    imagePlaceholder: {
+        width: '100%',
+        height: '150px',
+        backgroundColor: '#fff', // Fundo branco na imagem como no Figma
+        border: '2px solid #333',
+        borderRadius: '12px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: '10px'
+    },
+    prodTitle: {
+        fontSize: '16px',
+        margin: '5px 0'
+    },
+    prodText: {
+        margin: '2px 0',
+        fontSize: '14px',
+        color: '#333'
+    },
+    // Estilos do Modal
+    modalOverlay: {
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        zIndex: 1000
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        padding: '30px',
+        borderRadius: '10px',
+        width: '400px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+    },
+    input: {
+        width: '100%',
+        padding: '10px',
+        borderRadius: '6px',
+        border: '1px solid #ccc',
+        boxSizing: 'border-box'
+    },
+    label: {
+        fontWeight: 'bold',
+        fontSize: '12px',
+        marginBottom: '5px',
+        display: 'block'
+    }
+};
 
 export default EstoquePage;

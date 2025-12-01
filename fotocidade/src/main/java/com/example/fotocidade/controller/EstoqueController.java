@@ -39,6 +39,13 @@ public class EstoqueController {
         return ResponseEntity.ok(salvo);
     }
 
+    // Adicione este endpoint
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        estoqueService.deletarProduto(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{idEstoque}")
     public ResponseEntity<EstoqueModel> atualizarEstoque(
             @PathVariable(value = "idEstoque") Long idEstoque,

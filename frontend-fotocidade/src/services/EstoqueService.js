@@ -1,63 +1,25 @@
 // /src/services/EstoqueService.js
 
-const API = 'http://localhost:8080';
+const API_BASE_URL = 'http://localhost:8080';
 
-// ==============================================
-// 1. Buscar todos os Produtos do Estoque (GET)
-// ==============================================
 export const listarTodosProdutos = async () => {
-    try {
-        // Chamada para a nova rota que filtra estoque > 0
-        const response = await fetch(`${API}/estoque/disponiveis`); 
-        if (!response.ok) {
-            throw new Error('Erro ao buscar lista de produtos disponíveis.');
-        }
-        return await response.json(); 
-    } catch (error) {
-        console.error("Falha ao listar produtos:", error);
-        throw error; 
-    }
+    // Usamos a rota que traz tudo (inclusive estoque 0) para o admin
+    const response = await fetch(`${API_BASE_URL}/estoque`); 
+    return await response.json();
 };
 
-// ==============================================
-// 2. Criar novo Produto no Estoque (POST)
-// ==============================================
-export const criarProdutoEstoque = async (produtoData) => {
-    try {
-        const response = await fetch(`${API}/estoque`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(produtoData),
-        });
-        if (!response.ok) {
-            throw new Error('Erro ao criar novo produto no estoque.');
-        }
-        return await response.json();
-    } catch (error) {
-        console.error("Falha na criação do produto:", error);
-        throw error; 
-    }  
-// ==============================================
+export const salvarProduto = async (produto) => {
+    // O backend já tem a lógica de "Upsert" (Criar ou Atualizar pelo nome/ID)
+    const response = await fetch(`${API_BASE_URL}/estoque`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(produto)
+    });
+    return await response.json();
 };
 
-// 3. Atualizar Produto no Estoque (PUT)
-export const atualizarProdutoEstoque = async (idEstoque, produtoData) => {
-    try {
-        const response = await fetch(`${API}/estoque/${idEstoque}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(produtoData),
-        });
-        if (!response.ok) {
-            throw new Error('Erro ao atualizar o produto no estoque.');
-        }
-        return await response.json();
-    } catch (error) {
-        console.error("Falha na atualização do produto:", error);
-        throw error; 
-    }
+export const deletarProduto = async (id) => {
+    await fetch(`${API_BASE_URL}/estoque/${id}`, {
+        method: 'DELETE'
+    });
 };

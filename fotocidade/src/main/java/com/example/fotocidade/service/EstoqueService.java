@@ -60,6 +60,10 @@ public class EstoqueService {
         }
     }
 
+    public void deletarProduto(Long id) {
+        estoqueRepository.deleteById(id);
+    }
+
     @Transactional
     public Optional<EstoqueModel> atualizarPorId(Long id, EstoqueModel novosDados) {
         // 1. Busca o item existente pelo ID

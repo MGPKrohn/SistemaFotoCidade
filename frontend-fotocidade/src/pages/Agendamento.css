@@ -1,0 +1,83 @@
+/* /src/pages/Agendamento.css */
+
+/* Remove bordas padrão e ajusta fonte */
+.react-calendar {
+    width: 100%;
+    max-width: 100%;
+    background: white;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.125em;
+    border-radius: 12px; /* Cantos arredondados */
+    padding: 10px;
+}
+
+/* Cabeçalho do Calendário (Mês/Ano) */
+.react-calendar__navigation button {
+    color: #000;
+    min-width: 44px;
+    background: none;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+    background-color: #f0f0f0;
+    border-radius: 8px;
+}
+
+/* Dias da semana */
+.react-calendar__month-view__weekdays {
+    text-align: center;
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 0.75em;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+/* Botões dos dias */
+.react-calendar__tile {
+    max-width: 100%;
+    padding: 15px 6.6667px;
+    background: none;
+    text-align: center;
+    line-height: 16px;
+    font-size: 14px;
+    border-radius: 8px; /* Botões arredondados */
+    transition: 0.2s;
+}
+
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+    background-color: #f0f0f0;
+    color: #000;
+}
+
+/* Dia Selecionado (Preto estilo Figma) */
+.react-calendar__tile--active {
+    background: #111 !important;
+    color: white !important;
+}
+
+.react-calendar__tile--active:enabled:hover,
+.react-calendar__tile--active:enabled:focus {
+    background: #333 !important;
+}
+
+/* Dia Atual (Hoje) */
+.react-calendar__tile--now {
+    background: #e6e6e6;
+    font-weight: bold;
+}
+
+/* Bolinha Vermelha (Indicador de Agendamento) */
+.dot-indicator {
+    height: 6px;
+    width: 6px;
+    background-color: #ff4d4f; /* Vermelho destaque */
+    border-radius: 50%;
+    margin: 4px auto 0;
+}

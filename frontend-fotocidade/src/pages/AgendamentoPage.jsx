@@ -2,320 +2,289 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css'; 
+import 'react-calendar/dist/Calendar.css'; // Importa estrutura base
+import './Agendamento.css'; // Importa NOSSO estilo (Preto e Branco)
 import { 
     criarAgendamento, 
     buscarDatasAgendadas, 
     buscarAgendamentosPorData 
 } from '../services/AgendamentoService';
 
-// Função auxiliar para formatar datas no padrão YYYY-MM-DD
-const formatDate = (date) => {
-    return date.toISOString().split('T')[0];
+// Utilitários de Data
+const formatDateToISO = (date) => date.toISOString().split('T')[0];
+
+const formatTime = (timeData) => {
+    // Lida com Array [H, M, S] ou String "HH:MM"
+    if (Array.isArray(timeData)) {
+        const h = String(timeData[3]).padStart(2, '0');
+        const m = String(timeData[4]).padStart(2, '0');
+        return `${h}:${m}`;
+    }
+    if (typeof timeData === 'string') {
+        return timeData.split('T')[1]?.substring(0, 5) || '';
+    }
+    return '--:--';
 };
 
-function AgendamentoPage() {
+const AgendamentoPage = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [datasAgendadas, setDatasAgendadas] = useState([]); // Set<String> de datas (YYYY-MM-DD)
+    const [datasAgendadas, setDatasAgendadas] = useState([]); 
     const [agendamentosDoDia, setAgendamentosDoDia] = useState([]);
     const [feedback, setFeedback] = useState('');
-    const [loadingDates, setLoadingDates] = useState(true);
 
-    // Estado do formulário refletindo a sua Model
+    // Estado do Formulário
     const [form, setForm] = useState({
         nomecliente: '',
-        // Data e Hora de Início (Ex: 2025-11-27T10:00)
-        horaInicio: formatDate(new Date()) + 'T10:00', 
-        // Data e Hora de Fim (Ex: 2025-11-27T11:00)
-        horaFim: formatDate(new Date()) + 'T11:00', 
-        situacaoPagamento: false // Padrão: Não pago
+        horaInicio: '09:00', // Apenas horário agora, data vem do calendário
+        horaFim: '10:00',
+        situacaoPagamento: false
     });
 
-    // =========================================================
-    // EFEITO: CARREGAR DATAS AGENDADAS (Para as bolinhas vermelhas)
-    // =========================================================
-    const fetchDatasAgendadas = useCallback(async () => {
-        setLoadingDates(true);
+    // 1. Carregar Datas com Agendamentos (Bolinhas Vermelhas)
+    const carregarDatasBloqueadas = useCallback(async () => {
         try {
-            const datas = await buscarDatasAgendadas(); 
+            const datas = await buscarDatasAgendadas();
             setDatasAgendadas(datas);
         } catch (error) {
-            console.error("Erro ao carregar datas agendadas:", error);
-        } finally {
-            setLoadingDates(false);
+            console.error(error);
         }
     }, []);
-    
-    useEffect(() => {
-        fetchDatasAgendadas();
-    }, [fetchDatasAgendadas]);
 
-    // =========================================================
-    // EFEITO: CARREGAR AGENDAMENTOS DO DIA SELECIONADO
-    // =========================================================
-    const carregarAgendamentosDoDia = useCallback(async (data) => {
-        const dataFormatada = formatDate(data);
+    // 2. Carregar Lista do Dia
+    const carregarDoDia = useCallback(async (date) => {
+        const isoDate = formatDateToISO(date);
         try {
-            const agendamentos = await buscarAgendamentosPorData(dataFormatada);
-            setAgendamentosDoDia(agendamentos);
+            const lista = await buscarAgendamentosPorData(isoDate);
+            setAgendamentosDoDia(lista);
         } catch (error) {
             setAgendamentosDoDia([]);
-            // Este erro é comum se o backend estiver vazio, apenas logar.
-            console.warn(`Nenhum agendamento para ${dataFormatada} encontrado.`);
         }
     }, []);
-    
-    // Dispara a carga sempre que a data selecionada mudar
-    useEffect(() => {
-        carregarAgendamentosDoDia(selectedDate);
-    }, [selectedDate, carregarAgendamentosDoDia]);
 
-    // =========================================================
-    // LÓGICA DO CALENDÁRIO: MARCAÇÃO COM BOLINHA VERMELHA
-    // =========================================================
+    useEffect(() => {
+        carregarDatasBloqueadas();
+    }, [carregarDatasBloqueadas]);
+
+    useEffect(() => {
+        carregarDoDia(selectedDate);
+    }, [selectedDate, carregarDoDia]);
+
+    // 3. Renderiza Bolinha Vermelha
     const tileContent = ({ date, view }) => {
         if (view === 'month') {
-            const dateString = formatDate(date);
-            // Verifica se a data atual (YYYY-MM-DD) está no Set<String> retornado pelo backend
-            if (datasAgendadas.includes(dateString)) {
-                return <div style={styles.dot}></div>; 
+            const iso = formatDateToISO(date);
+            if (datasAgendadas.includes(iso)) {
+                return <div className="dot-indicator"></div>;
             }
         }
         return null;
     };
 
-    const handleDateChange = (date) => {
-        setSelectedDate(date);
-        // Atualiza a data do formulário para o dia selecionado
-        const dataFormatada = formatDate(date);
-        setForm(prevForm => ({
-             ...prevForm,
-             horaInicio: dataFormatada + prevForm.horaInicio.substring(10), // Mantém a hora
-             horaFim: dataFormatada + prevForm.horaFim.substring(10) // Mantém a hora
-        }));
-    };
-
-
-    // =========================================================
-    // LÓGICA DO FORMULÁRIO
-    // =========================================================
-    const handleFormChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setForm({ 
-            ...form, 
-            [name]: type === 'checkbox' ? checked : value 
-        });
-    };
-
-    const handleFormSubmit = async (e) => {
+    // 4. Envio do Formulário
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setFeedback('');
 
-        // 🚨 VALIDAÇÃO BÁSICA: O campo dataAgendamento é criado a partir do horaInicio/horaFim no submit
-       const diaAgendamento = form.horaInicio.substring(0, 10);
+        const dateIso = formatDateToISO(selectedDate);
+        
+        // Monta o payload combinando a Data Selecionada + Horas dos inputs
+        const payload = {
+            nomecliente: form.nomecliente,
+            diaAgendamento: dateIso,
+            horaInicio: `${dateIso}T${form.horaInicio}`,
+            horaFim: `${dateIso}T${form.horaFim}`,
+            situacaoPagamento: form.situacaoPagamento
+        };
 
-try {
-    const agendamentoParaAPI = {
-        nomecliente: form.nomecliente,
-        // Garante que o campo que o backend valida (dataAgendamento) está presente
-        diaAgendamento: diaAgendamento, 
-        horaInicio: form.horaInicio,
-        horaFim: form.horaFim,
-        situacaoPagamento: form.situacaoPagamento
-    };
-
-    // DEBUG: Logue o objeto antes de enviar para conferir a estrutura
-    console.log("Payload enviado:", agendamentoParaAPI); 
-
-    await criarAgendamento(agendamentoParaAPI);
-            
-            // Sucesso:
-            setFeedback('✅ Agendamento criado com sucesso!');
-            setForm(prevForm => ({ // Limpa o nome do cliente
-                ...prevForm,
-                nomecliente: '',
-            }));
-            
-            // Recarrega os dados
-            fetchDatasAgendadas();
-            carregarAgendamentosDoDia(selectedDate);
-
+        try {
+            await criarAgendamento(payload);
+            setFeedback('✅ Agendado com sucesso!');
+            setForm({ ...form, nomecliente: '' }); // Limpa nome
+            carregarDatasBloqueadas(); // Atualiza bolinhas
+            carregarDoDia(selectedDate); // Atualiza lista
         } catch (error) {
-            setFeedback(`❌ Erro ao agendar: ${error.message}`);
+            setFeedback('❌ Erro: ' + error.message);
         }
     };
 
-
-  const formatTime = (localDateTimeData) => {
-    // 1. Verifica se o dado é nulo, undefined ou se é um Array (típico de LocalDateTime)
-    if (!localDateTimeData || !Array.isArray(localDateTimeData)) {
-        return '';
-    }
-
-    // A hora é o 4º elemento (índice 3) e o minuto é o 5º elemento (índice 4)
-    const hour = String(localDateTimeData[3]).padStart(2, '0');
-    const minute = String(localDateTimeData[4]).padStart(2, '0');
-    
-    return `${hour}:${minute}`; 
-};
-
     return (
-        <div style={styles.container}>
-            <h2>📅 Gestão de Agendamentos</h2>
-            
-            <div style={styles.layout}>
-                
-                {/* COLUNA DA ESQUERDA: CALENDÁRIO E LISTA DO DIA */}
-                <div style={styles.calendarPanel}>
-                    <h3>Selecione a Data</h3>
-                    {loadingDates && <p>Carregando datas...</p>}
-                    <Calendar 
-                        onChange={handleDateChange}
-                        value={selectedDate}
-                        tileContent={tileContent}
-                        locale="pt-BR"
-                    />
+        <div className="page-container">
+            <h1 style={{ fontSize: '48px', marginBottom: '40px' }}>Agendamento</h1>
 
-                    <div style={styles.dailyAppointments}>
-                        <h4>Agendamentos para {selectedDate.toLocaleDateString('pt-BR')}</h4>
-                        {agendamentosDoDia.length > 0 ? (
-                            agendamentosDoDia.map((ag, index) => (
-                                <div key={index} style={styles.appointmentItem}>
-                                    <p><strong>Cliente:</strong> {ag.nomecliente}</p>
-                                    <p>
-                                        {/* Use o operador de encadeamento opcional (?) se for React moderno */}
-                                        <strong>Horário:</strong> {formatTime(ag.horaInicio)} - {formatTime(ag.horaFim)}
-                                        
-                                    </p>
-                                    <p style={{ color: ag.situacaoPagamento ? 'green' : 'red' }}>
-                                        Pagamento: {ag.situacaoPagamento ? 'Pago' : 'Pendente'}
-                                    </p>
-                                </div>
-                            ))
+            <div style={styles.gridContainer}>
+                
+                {/* --- COLUNA ESQUERDA: Calendário e Lista --- */}
+                <div style={styles.leftColumn}>
+                    <div style={styles.card}>
+                        <Calendar 
+                            onChange={setSelectedDate} 
+                            value={selectedDate} 
+                            tileContent={tileContent}
+                            locale="pt-BR"
+                        />
+                    </div>
+
+                    <div style={{ ...styles.card, marginTop: '20px', flex: 1 }}>
+                        <h3 style={{ marginBottom: '15px' }}>
+                            {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </h3>
+                        
+                        {agendamentosDoDia.length === 0 ? (
+                            <p style={{ color: '#999', fontStyle: 'italic' }}>Nenhum horário marcado.</p>
                         ) : (
-                            <p>Nenhum agendamento para este dia.</p>
+                            <div style={styles.listContainer}>
+                                {agendamentosDoDia.map((ag) => (
+                                    <div key={ag.idAgendamento} style={styles.listItem}>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{ag.nomecliente}</div>
+                                            <div style={{ fontSize: '12px', color: '#666' }}>
+                                                {formatTime(ag.horaInicio)} - {formatTime(ag.horaFim)}
+                                            </div>
+                                        </div>
+                                        <div style={{ 
+                                            padding: '4px 8px', 
+                                            borderRadius: '4px', 
+                                            fontSize: '12px',
+                                            backgroundColor: ag.situacaoPagamento ? '#d4edda' : '#fff3cd',
+                                            color: ag.situacaoPagamento ? '#155724' : '#856404'
+                                        }}>
+                                            {ag.situacaoPagamento ? 'Pago' : 'Pendente'}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* COLUNA DA DIREITA: FORMULÁRIO DE CRIAÇÃO */}
-                <div style={styles.formPanel}>
-                    <h3>Novo Agendamento</h3>
-                    <form onSubmit={handleFormSubmit}>
+                {/* --- COLUNA DIREITA: Formulário Novo --- */}
+                <div style={styles.rightColumn}>
+                    <div style={{ ...styles.card, height: '100%' }}>
+                        <h2 style={{ marginBottom: '20px' }}>Novo Agendamento</h2>
                         
-                        <div>
-                            <label>Data do Agendamento:</label>
-                            <input 
-                                type="date" 
-                                name="diaAgendamento" // Nome do campo na Model
-                                value={formatDate(selectedDate)} 
-                                onChange={(e) => {
-                                    const novaData = new Date(e.target.value);
-                                    handleDateChange(novaData);
-                                }
-                                }
-                                required
-                                style={{ ...styles.input, marginTop: '5px', marginBottom: '15px' }}
-                            />
-                        </div>
-
-                        <div style={styles.formGroup}>
-                            <label>Início (Data e Hora):</label>
-                            <input 
-                                type="datetime-local" 
-                                name="horaInicio" // Nome do campo na Model
-                                value={form.horaInicio} 
-                                onChange={handleFormChange}
-                                required
-                                style={styles.input}
-                            />
-                        </div>
-
-                        <div style={styles.formGroup}>
-                            <label>Fim (Data e Hora):</label>
-                            <input 
-                                type="datetime-local" 
-                                name="horaFim" // Nome do campo na Model
-                                value={form.horaFim} 
-                                onChange={handleFormChange}
-                                required
-                                style={styles.input}
-                            />
-                        </div>
-
-                        <div style={styles.formGroup}>
-                            <label>Nome do Cliente:</label>
-                            <input 
-                                type="text" 
-                                name="nomecliente" // Nome do campo na Model
-                                value={form.nomecliente} 
-                                onChange={handleFormChange}
-                                required
-                                style={styles.input}
-                            />
-                        </div>
-
-                        
-                        <div style={styles.formGroup}>
-                            <label>
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            
+                            <div>
+                                <label style={styles.label}>Cliente</label>
                                 <input 
-                                    type="checkbox" 
-                                    name="situacaoPagamento" // Nome do campo na Model
-                                    checked={form.situacaoPagamento} 
-                                    onChange={handleFormChange}
-                                    style={{ marginRight: '10px' }}
+                                    style={styles.input}
+                                    value={form.nomecliente}
+                                    onChange={e => setForm({...form, nomecliente: e.target.value})}
+                                    placeholder="Nome completo"
+                                    required
                                 />
-                                Pagamento Confirmado (Situação Pagamento)
-                            </label>
-                        </div>
-
-
-                        {feedback && (
-                            <div style={{ color: feedback.startsWith('✅') ? 'green' : 'red', fontWeight: 'bold', margin: '15px 0' }}>
-                                {feedback}
                             </div>
-                        )}
 
-                        <button type="submit" style={styles.buttonSubmit}>
-                            Cadastrar Agendamento
-                        </button>
-                    </form>
+                            <div>
+                                <label style={styles.label}>Data Selecionada</label>
+                                <input 
+                                    type="text"
+                                    style={styles.input}
+                                    value={selectedDate.toLocaleDateString('pt-BR')}
+                                    onChange={e => setForm({...form, diaAgendamento: e.target.value})}
+                                    required
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '15px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={styles.label}>Início</label>
+                                    <input 
+                                        type="time" 
+                                        style={styles.input}
+                                        value={form.horaInicio}
+                                        onChange={e => setForm({...form, horaInicio: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={styles.label}>Fim</label>
+                                    <input 
+                                        type="time" 
+                                        style={styles.input}
+                                        value={form.horaFim}
+                                        onChange={e => setForm({...form, horaFim: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <input 
+                                    type="checkbox"
+                                    id="pago"
+                                    checked={form.situacaoPagamento}
+                                    onChange={e => setForm({...form, situacaoPagamento: e.target.checked})}
+                                    style={{ width: '20px', height: '20px' }}
+                                />
+                                <label htmlFor="pago" style={{ cursor: 'pointer', fontSize: '14px' }}>Pagamento Confirmado</label>
+                            </div>
+
+                            {feedback && <p style={{ fontWeight: 'bold' }}>{feedback}</p>}
+
+                            <button type="submit" className="btn-dark" style={{ marginTop: '10px' }}>
+                                Confirmar Agendamento
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     );
-}
+};
 
-// Estilos CSS-in-JS (Os mesmos do componente anterior)
+// Estilos específicos de layout
 const styles = {
-    container: { padding: '40px', fontFamily: 'Arial, sans-serif' },
-    layout: { display: 'flex', gap: '40px', marginTop: '20px' },
-    calendarPanel: { flex: 1, minWidth: '400px' },
-    formPanel: { flex: 1, padding: '20px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#f9f9f9' },
-    dot: { 
-        height: '6px', 
-        width: '6px', 
-        backgroundColor: 'red', 
-        borderRadius: '50%', 
-        display: 'block', 
-        margin: '2px auto 0',
+    gridContainer: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr', // Divide a tela ao meio
+        gap: '40px',
+        alignItems: 'start'
     },
-    dailyAppointments: {
-        marginTop: '30px',
-        padding: '15px',
-        border: '1px solid #eee',
-        borderRadius: '5px',
-        maxHeight: '300px',
-        overflowY: 'auto'
+    leftColumn: {
+        display: 'flex',
+        flexDirection: 'column',
     },
-    appointmentItem: {
-        borderBottom: '1px dashed #ddd',
-        padding: '10px 0',
-        marginBottom: '5px'
+    rightColumn: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%'
     },
-    formGroup: { marginBottom: '15px' },
-    input: { width: '100%', padding: '10px', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: '4px', marginTop: '5px' },
-    buttonSubmit: { padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontSize: '1em' }
+    card: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        padding: '30px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.05)', // Sombra suave
+        border: '1px solid #f0f0f0'
+    },
+    listContainer: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+    },
+    listItem: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '10px',
+        borderBottom: '1px solid #eee'
+    },
+    label: {
+        display: 'block',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        marginBottom: '8px',
+        color: '#333'
+    },
+    input: {
+        width: '100%',
+        padding: '12px',
+        borderRadius: '8px',
+        border: '1px solid #ddd',
+        fontSize: '14px',
+        backgroundColor: '#f9f9f9',
+        boxSizing: 'border-box'
+    }
 };
 
 export default AgendamentoPage;
